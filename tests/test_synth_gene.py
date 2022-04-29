@@ -1,10 +1,10 @@
-"""Test data synthesis."""
+"""Test genome data synthesis."""
 
 from unittest.mock import patch
 
 from pytest import fixture
 
-from dnadoh.synthesize import DNA, GenomeParams, rand_gene, rand_chromosomes, rand_genome
+from dnadoh.synth_gene import DNA, GenomeParams, rand_gene, rand_chromosomes, rand_genome
 
 
 @fixture
@@ -27,14 +27,14 @@ def test_rand_gene_fixed_length():
 
 
 def test_rand_gene_variable_length():
-    for i in range(10):
+    for _ in range(10):
         gene = rand_gene(3, 5)
         assert 3 <= len(gene) <= 5
         assert all(base in DNA for base in gene)
 
 
 def test_rand_gene_forced_length():
-    with patch("dnadoh.synthesize.random.randint", return_value=5):
+    with patch("dnadoh.synth_gene.random.randint", return_value=5):
         gene = rand_gene(3, 5)
         assert len(gene) == 5
         assert all(base in DNA for base in gene)
@@ -63,7 +63,7 @@ def test_rand_chromosomes_correct_num_genes(params):
 
 def test_rand_chromosomes_correct_num_variants(params):
     params.min_num_variants = params.max_num_variants = 1
-    with patch("dnadoh.synthesize.rand_gene", side_effect=["A", "T"]):
+    with patch("dnadoh.synth_gene.rand_gene", side_effect=["A", "T"]):
         c = rand_chromosomes(params)
         assert c[0][0] != c[1][0]
 

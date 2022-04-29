@@ -1,9 +1,9 @@
-"""Synthesize study data."""
+"""Synthesize genomic data."""
 
 
 import random
 
-from pydantic import BaseModel, validator
+from pydantic import BaseModel
 
 
 # Bases.
@@ -11,7 +11,6 @@ DNA = "ACGT"
 
 # How many times to try to find a variant allele?
 MAX_TRIES = 100
-
 
 class GenomeParams(BaseModel):
     """Params for genome synthesis."""
