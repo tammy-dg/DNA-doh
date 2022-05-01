@@ -44,16 +44,15 @@ class FileCache:
     """Cache large remote files."""
 
     def __init__(self, cache_dir=None, remote_url=None):
-        self.config = {}
-        if cache_dir is not None:
-            CONFIG["cache"] = cache_dir
+        if cache_dir:
+            self.cache_dir = cache_dir
         else:
-            pass
-
-        if remote_url is not None:
-            CONFIG["remote"] = cache_dir
+            self.cache_dir = CONFIG["cache"]
+        
+        if remote_url:
+            self.remote_url = remote_url
         else:
-            pass
+            self.remote_url = CONFIG["remote"]
         
     # Map remote filenames to local cached filenames.
     _cache = {}
