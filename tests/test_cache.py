@@ -74,5 +74,10 @@ def test_get_when_cached(mock, non_empty_cacher):
     assert mock.call_count == 1
 
 
+def test_remote_download(cacher):
+    remote_file = "https://github.com/tammy-dg/tammys-simple-web-server/blob/master/test/test.png"
+    cacher.get(remote_file)
+    assert cacher.files[remote_file] == Path(cacher.cache_dir, "test.png")
+    cacher.clear()
 
 

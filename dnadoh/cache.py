@@ -62,15 +62,18 @@ class FileCache:
     def get(self, filename):
         """Return path to cached copy of file, getting as needed."""
         if filename not in self.files:
-            cache_path = Path(self.cache_dir, filename)
             # check if valid URL, which implies it can be downloaded
             if validators.url(filename) is True:
+                # extact filename from URL
+                extracted_filename = filename.split('/')[-1]
+                cache_path = Path(self.cache_dir, extracted_filename)
                 if self._download_file(filename, cache_path):
                     self.files[filename] = cache_path
                 else:
                     # download failed
                     print(f"{filename} could not be downloaded.")
             else:
+                cache_path = Path(self.cache_dir, filename)
                 self._get_file(filename, cache_path)
                 self.files[filename] = cache_path
         else:
@@ -100,7 +103,9 @@ class FileCache:
         h = requests.head(remote_url, allow_redirects=True)
         header = h.headers
         content_length = header.get("content-length", None)
-        if content_length > 2.5e-8:  # this is in bytes
+        # print(header)
+        # i think content length only works for txt files? couldn't see one with an image
+        if content_length and content_length > 2.5e-8:  # this is in bytes
             print(f"File is too large")
             return False
         # TODO: file type restrictions?
