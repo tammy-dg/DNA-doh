@@ -4,11 +4,9 @@ import argparse
 import csv
 import json
 import random
-import sys
 from typing import List, Optional
 
 from pydantic import BaseModel
-
 
 # --------------------------------------------------------------------------------------
 # Genomes
