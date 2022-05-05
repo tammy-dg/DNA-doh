@@ -1,6 +1,7 @@
 """Synthesize data."""
 
 import csv
+import json
 import random
 import sys
 from typing import List, Optional
@@ -52,28 +53,33 @@ def random_sequence(length):
     return "".join(random.choices(DNA, k=length))
 
 
-def random_genomes(length, num_genomes, num_mutations):
+def random_genomes(length, num_genomes, num_snps, max_num_other_mutations):
     """Generate a set of genomes with specified number of point mutations.
 
     1.  Create a reference genome.
     2.  Generate `num_genomes` copies.
     3.  Pick `num_mutations` distinct locations.
-    4.  Introduce mutations using `SNP_PROBS` as weights.
+    4.  Introduce significant mutations using `SNP_PROBS` as weights.
+    5.  Introduce up to `max_num_other_mutations` at other locations (unweighted).
     """
-    assert 0 <= num_mutations <= length
+    assert 0 <= num_snps <= length
 
     # Reference genomes and specific genomes to modify.
     reference = random_sequence(length)
     individuals = [reference] * num_genomes
 
     # Locations for SNPs.
-    locations = random.sample(list(range(length)), num_mutations)
+    locations = random.sample(list(range(length)), num_snps)
 
-    # Introduce mutations.
+    # Introduce significant mutations.
     for loc in locations:
         individuals = _mutate_all(reference, individuals, loc)
 
-    # Return reference genome and actual genomes.
+    # Introduce other random mutations.
+    other_locations = list(set(range(length)) - set(locations))
+    individuals = [_mutate_other(i, max_num_other_mutations, other_locations) for i in individuals]
+
+    # Return structure.
     return GenePool(
         length=length, reference=reference, individuals=individuals, locations=locations
     )
@@ -94,6 +100,14 @@ def _mutate_all(reference, genomes, loc):
         result.append(g[:loc] + choices[i] + g[loc + 1 :])
     return result
 
+
+def _mutate_other(genome, max_num_mutations, locations):
+    """Introduce up to `max_num_mutations` at specified locations."""
+    num = min(max_num_mutations, len(genome))
+    for loc in random.sample(locations, k=num):
+        base = random.choice(_other_bases(genome, loc))
+        genome = genome[:loc] + base + genome[loc + 1 :]
+    return genome
 
 # --------------------------------------------------------------------------------------
 # People
@@ -166,7 +180,7 @@ class PersonGenerator:
         assert person.gsex is not None
         mean = self.WEIGHT_MEANS[person.gsex]
         std_dev = mean * self.WEIGHT_RSD
-        person.weight = truncate(random.gauss(mean, std_dev), 1)
+        person.weight = _truncate(random.gauss(mean, std_dev), 1)
 
 
 def adjust_all(genomes, people, func):
@@ -188,34 +202,85 @@ def adjust_all(genomes, people, func):
 
 def adjust_weight(person):
     """Adjust a person's weight upward by 10%."""
-    person.weight = truncate(1.1 * person.weight, 1)
+    person.weight = _truncate(1.1 * person.weight, 1)
 
 
-def _other_bases(seq, loc):
-    """Create a list of bases minus the one in the sequence at that location."""
-    return list(set(DNA) - {seq[loc]})
+# --------------------------------------------------------------------------------------
+# I/O
+# --------------------------------------------------------------------------------------
+
+
+def _write(output_stem, genomes, people):
+    """Write people as CSV."""
+    assert people
+    _write_overall(output_stem, people)
+    _write_reference_genome(output_stem, genomes)
+    _write_variants(output_stem, genomes, people)
+    _write_people(output_stem, people)
+
+
+def _write_overall(output_stem, people):
+    """Write DNA sequences and people for reference."""
+    filename = f"{output_stem}-overall.csv"
+    headings = people[0].dict().keys()
+    with open(filename, "w") as raw:
+        writer = csv.DictWriter(raw, fieldnames=headings)
+        writer.writeheader()
+        for person in people:
+            writer.writerow(person.dict())
+
+
+def _write_reference_genome(output_stem, genomes):
+    """Save the reference genome and related information."""
+    filename = f"{output_stem}-reference.json"
+    data = {"genome": genomes.reference, "locations": list(sorted(genomes.locations))}
+    with open(filename, "w") as writer:
+        json.dump(data, writer)
+
+
+def _write_variants(output_stem, genomes, people):
+    """Write one variant file per person."""
+    width = len(str(len(people)))
+    for (pid, person) in enumerate(people):
+        pid_str = str(pid).zfill(width)
+        filename = f"{output_stem}-pid{pid_str}.csv"
+        with open(filename, "w") as raw:
+            writer = csv.DictWriter(raw, fieldnames=["loc", "base"])
+            writer.writeheader()
+            for i in range(len(genomes.reference)):
+                if person.genome[i] != genomes.reference[i]:
+                    writer.writerow({"loc": i, "base": person.genome[i]})
+
+
+def _write_people(output_stem, people):
+    """Write phenotypic data for people."""
+    filename = f"{output_stem}-people.csv"
+    headings = people[0].dict()
+    del headings["genome"]
+    headings["pid"] = 0
+    with open(filename, "w") as raw:
+        writer = csv.DictWriter(raw, fieldnames=headings)
+        writer.writeheader()
+        for (pid, person) in enumerate(people):
+            details = person.dict()
+            del details["genome"]
+            details["pid"] = pid
+            writer.writerow(details)
 
 
 # --------------------------------------------------------------------------------------
 # Utilities
 # --------------------------------------------------------------------------------------
 
+def _other_bases(seq, loc):
+    """Create a list of bases minus the one in the sequence at that location."""
+    return list(set(DNA) - {seq[loc]})
 
-def truncate(num, digits):
+
+def _truncate(num, digits):
     """Truncate a number to the specified number of fractional digits."""
     scale = 10**digits
     return int(scale * num) / scale
-
-
-def write(people):
-    """Write people as CSV."""
-    if not people:
-        return
-    headings = people[0].dict().keys()
-    writer = csv.DictWriter(sys.stdout, fieldnames=headings)
-    writer.writeheader()
-    for person in people:
-        writer.writerow(person.dict())
 
 
 # --------------------------------------------------------------------------------------
@@ -227,13 +292,14 @@ if __name__ == "__main__":
     length = int(sys.argv[1])
     num_genomes = int(sys.argv[2])
     num_mutations = int(sys.argv[3])
+    max_num_other_mutations = int(sys.argv[4])
+    random.seed(int(sys.argv[5]))
+    output_stem = sys.argv[6]
 
-    random.seed(int(sys.argv[4]))
-
-    genomes = random_genomes(length, num_genomes, num_mutations)
+    genomes = random_genomes(length, num_genomes, num_mutations, max_num_other_mutations)
 
     pg = PersonGenerator()
     people = [pg.make(genomes.reference, i) for i in genomes.individuals]
     adjust_all(genomes, people, adjust_weight)
 
-    write(people)
+    _write(output_stem, genomes, people)
