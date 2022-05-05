@@ -1,5 +1,6 @@
 """Synthesize data."""
 
+import argparse
 import csv
 import json
 import random
@@ -77,7 +78,9 @@ def random_genomes(length, num_genomes, num_snps, max_num_other_mutations):
 
     # Introduce other random mutations.
     other_locations = list(set(range(length)) - set(locations))
-    individuals = [_mutate_other(i, max_num_other_mutations, other_locations) for i in individuals]
+    individuals = [
+        _mutate_other(i, max_num_other_mutations, other_locations) for i in individuals
+    ]
 
     # Return structure.
     return GenePool(
@@ -108,6 +111,7 @@ def _mutate_other(genome, max_num_mutations, locations):
         base = random.choice(_other_bases(genome, loc))
         genome = genome[:loc] + base + genome[loc + 1 :]
     return genome
+
 
 # --------------------------------------------------------------------------------------
 # People
@@ -272,6 +276,7 @@ def _write_people(output_stem, people):
 # Utilities
 # --------------------------------------------------------------------------------------
 
+
 def _other_bases(seq, loc):
     """Create a list of bases minus the one in the sequence at that location."""
     return list(set(DNA) - {seq[loc]})
@@ -288,18 +293,45 @@ def _truncate(num, digits):
 # --------------------------------------------------------------------------------------
 
 
-if __name__ == "__main__":
-    length = int(sys.argv[1])
-    num_genomes = int(sys.argv[2])
-    num_mutations = int(sys.argv[3])
-    max_num_other_mutations = int(sys.argv[4])
-    random.seed(int(sys.argv[5]))
-    output_stem = sys.argv[6]
+def main():
+    """Main driver."""
+    options = parse_args()
+    random.seed(options.seed)
+    genomes, people = generate(options)
+    _write(options.output_stem, genomes, people)
 
-    genomes = random_genomes(length, num_genomes, num_mutations, max_num_other_mutations)
 
+def parse_args():
+    """Get command-line arguments."""
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--length", type=int, help="genome length")
+    parser.add_argument("--num_genomes", type=int, help="number of genomes (people)")
+    parser.add_argument(
+        "--num_mutations", type=int, help="number of significant mutations"
+    )
+    parser.add_argument(
+        "--max_num_other_mutations",
+        type=int,
+        help="maximum number of other mutations per person",
+    )
+    parser.add_argument("--seed", type=int, help="RNG seed")
+    parser.add_argument("--output_stem", type=str, help="output path/file stem")
+    return parser.parse_args()
+
+
+def generate(options):
+    """Generate genomes and people from parameters."""
+    genomes = random_genomes(
+        options.length,
+        options.num_genomes,
+        options.num_mutations,
+        options.max_num_other_mutations,
+    )
     pg = PersonGenerator()
     people = [pg.make(genomes.reference, i) for i in genomes.individuals]
     adjust_all(genomes, people, adjust_weight)
+    return genomes, people
 
-    _write(output_stem, genomes, people)
+
+if __name__ == "__main__":
+    main()
