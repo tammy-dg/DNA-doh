@@ -42,6 +42,7 @@ CONFIG = {
     "remote": Path(__file__).parent.parent.joinpath("remote"),
 }
 
+DOWNLOAD_LIMIT = 2.5e8
 
 class FileCache:
     """Cache large remote files."""
@@ -63,15 +64,8 @@ class FileCache:
         """Return path to cached copy of file, getting as needed."""
         if filename not in self.files:
             # check if valid URL, which implies it can be downloaded
-            if validators.url(filename) is True:
-                # extact filename from URL
-                extracted_filename = filename.split('/')[-1]
-                cache_path = Path(self.cache_dir, extracted_filename)
-                if self._download_file(filename, cache_path):
-                    self.files[filename] = cache_path
-                else:
-                    # download failed
-                    print(f"{filename} could not be downloaded.")
+            if validators.url(filename):
+                self.handle_remote_url(filename)
             else:
                 cache_path = Path(self.cache_dir, filename)
                 self._get_file(filename, cache_path)
@@ -94,19 +88,18 @@ class FileCache:
         """Simulate getting a remote file."""
         remote_path = Path(self.remote_url, remote_path)
         # print(remote_path)
-        assert remote_path.exists(), f"{remote_path} does not exist"
+        if not remote_path.exists():
+            raise ValueError(f"{remote_path} does not exist")
         shutil.copyfile(remote_path, local_path)
 
     def _download_file(self, remote_url, local_path):
         """Downloads a file from a remote url"""
-        # restrict download size - set 250 MB limit
         h = requests.head(remote_url, allow_redirects=True)
         header = h.headers
         content_length = header.get("content-length", None)
-        # print(header)
         # i think content length only works for txt files? couldn't see one with an image
-        if content_length and content_length > 2.5e-8:  # this is in bytes
-            print(f"File is too large")
+        if content_length and content_length > DOWNLOAD_LIMIT:  # this is in bytes
+            print(f"File is too large (> {DOWNLOAD_LIMIT} bytes)")
             return False
         # TODO: file type restrictions?
         r = requests.get(remote_url, allow_redirects=True)
@@ -116,3 +109,13 @@ class FileCache:
             return True
         else:
             return False
+
+    def handle_remote_url(self, filename):
+        # extact filename from URL
+        extracted_filename = Path(filename).name
+        cache_path = Path(self.cache_dir, extracted_filename)
+        if self._download_file(filename, cache_path):
+            self.files[filename] = cache_path
+        else:
+            # download failed
+            raise RuntimeError(f"{filename} could not be downloaded.")
