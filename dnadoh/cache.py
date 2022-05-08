@@ -28,6 +28,7 @@ Things to change:
     `staticmethod`.  # because depends on the cache path?
 """
 
+import csv
 import filecmp
 import requests
 import shutil
@@ -44,6 +45,9 @@ CONFIG = {
 
 DOWNLOAD_LIMIT = 2.5e8
 
+CACHE_INDEX = "cache_index.csv"
+CACHE_HEADER = ["cache_path", "remote_path"]
+
 class FileCache:
     """Cache large remote files."""
 
@@ -58,31 +62,36 @@ class FileCache:
         else:
             self.remote_url = CONFIG["remote"]
         
-        self.files = {}
+        self.cache_index = Path(self.cache_dir, CACHE_INDEX)
+        self.setup_cache()
+
         
     def get(self, filename):
         """Return path to cached copy of file, getting as needed."""
-        if filename not in self.files:
+        cache_path = Path(self.cache_dir, filename)
+
+        if not self.check_if_in_cache(cache_path):
             # check if valid URL, which implies it can be downloaded
             if validators.url(filename):
                 self.handle_remote_url(filename)
             else:
-                cache_path = Path(self.cache_dir, filename)
                 self._get_file(filename, cache_path)
-                self.files[filename] = cache_path
+                remote_path = Path(self.remote_url, filename)
+                self.add_to_cache_index(remote_path, cache_path)
         else:
-            # 4 - do a further check that the file is actually the same
-            if filecmp.cmp(Path(self.cache_dir, filename), Path(self.remote_url, filename)) is True:  # this doesn't work for remote URLs
-                return self.files[filename]
+            # check whether the file is actually on disk in local 
+            if cache_path.exists():
+                pass
             else:
                 self._get_file(filename, cache_path)
-                self.files[filename] = cache_path
+                remote_path = Path(self.remote_url, filename)
+                self.add_to_cache_index(filename, cache_path)
 
     def clear(self):
         """Clear the cache, deleting local files."""
-        self.files.clear()
         for filename in self.cache_dir.iterdir():
             filename.unlink()
+        self.setup_cache()
 
     def _get_file(self, remote_path, local_path):
         """Simulate getting a remote file."""
@@ -110,12 +119,37 @@ class FileCache:
         else:
             return False
 
-    def handle_remote_url(self, filename):
+    def handle_remote_url(self, remote_url):
         # extact filename from URL
-        extracted_filename = Path(filename).name
+        extracted_filename = Path(remote_url).name
         cache_path = Path(self.cache_dir, extracted_filename)
-        if self._download_file(filename, cache_path):
-            self.files[filename] = cache_path
+        if self._download_file(remote_url, cache_path):
+            self.add_to_cache_index(remote_url, cache_path)
         else:
             # download failed
-            raise RuntimeError(f"{filename} could not be downloaded.")
+            raise RuntimeError(f"{remote_url} could not be downloaded.")
+
+    def setup_cache(self):
+        """Creates an index for the cache if it doesn't exist"""
+        if not Path(self.cache_index).exists():
+            with open(self.cache_index, "w") as fhandle:
+                writer = csv.DictWriter(fhandle, fieldnames=CACHE_HEADER)
+                writer.writeheader()
+
+    def check_if_in_cache(self, local_path):
+        """Checks if a file is in the cache index"""
+        with open(self.cache_index, "r") as fhandle:
+            reader = csv.DictReader(fhandle)
+            for row in reader:
+                if row[CACHE_HEADER[0]] == local_path:
+                    return True
+        return False
+
+    def add_to_cache_index(self, remote_path, local_path):
+        """Adds a file to the cache index"""
+        with open(self.cache_index, "a") as fhandle:
+            writer = csv.DictWriter(fhandle, fieldnames=CACHE_HEADER)
+            writer.writerow({
+                CACHE_HEADER[0]: local_path,
+                CACHE_HEADER[1]: remote_path,
+            })

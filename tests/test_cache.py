@@ -45,7 +45,14 @@ def test_get_when_not_in_cache(fs, cache):
     test_fname = "test.txt"
     fs.create_file(Path(cache.remote_url, test_fname))
     cache.get(test_fname)
+    expected = {
+        CACHE_HEADER[0]: str(Path(cache.cache_dir, test_fname)),
+        CACHE_HEADER[1]: str(Path(cache.remote_url, test_fname))
+    }
     assert Path(cache.cache_dir, test_fname).exists()
+    with open(cache.cache_index, "r") as fhandle:
+        data = csv.DictReader(fhandle)
+        assert next(data) == expected
 
 
 @mock.patch.object(FileCache, "_get_file")
