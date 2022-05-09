@@ -4,6 +4,8 @@ import argparse
 import csv
 import json
 import random
+import sys
+
 from typing import List, Optional
 
 from pydantic import BaseModel
@@ -13,7 +15,12 @@ from pydantic import BaseModel
 # --------------------------------------------------------------------------------------
 
 
+# Bases (doh).
 DNA = "ACGT"
+
+# Probabilities of single nucleotide variations. The original base (from the reference
+# genome) will be select 50% of the time; the other three bases will be shuffled and
+# one selected per person with the given probabilities.
 SNP_PROBS = (0.50, 0.25, 0.13, 0.12)
 
 
@@ -72,12 +79,14 @@ def random_genomes(length, num_genomes, num_snps, max_num_other_mutations):
 
     # Introduce significant mutations.
     for loc in locations:
-        individuals = _mutate_all(reference, individuals, loc)
+        candidates = _other_bases(reference, loc)
+        bases = [reference[loc]] + random.sample(candidates, k=len(candidates))
+        individuals = [_mutate_significant(reference, ind, loc, bases) for ind in individuals]
 
     # Introduce other random mutations.
     other_locations = list(set(range(length)) - set(locations))
     individuals = [
-        _mutate_other(i, max_num_other_mutations, other_locations) for i in individuals
+        _mutate_other(ind, max_num_other_mutations, other_locations) for ind in individuals
     ]
 
     # Return structure.
@@ -86,20 +95,15 @@ def random_genomes(length, num_genomes, num_snps, max_num_other_mutations):
     )
 
 
-def _mutate_all(reference, genomes, loc):
+def _mutate_significant(reference, genome, loc, bases):
     """Introduce mutations at the specified location.
 
-    The base from the reference genome is retained with probability `SNP_PROBS[0]`.
-    The order of other bases is randomized and then they are selected according to
-    the other probabilities in `SNP_PROBS`.
+    The base from the reference genome must be first in `bases` and is
+    retained with probability `SNP_PROBS[0]`.  The other bases are
+    selected with the other weights from `SNP_PROBS`.
     """
-    candidates = _other_bases(reference, loc)
-    bases = [reference[loc]] + random.sample(candidates, k=len(candidates))
-    choices = random.choices(bases, weights=SNP_PROBS, k=len(genomes))
-    result = []
-    for (i, g) in enumerate(genomes):
-        result.append(g[:loc] + choices[i] + g[loc + 1 :])
-    return result
+    choice = _choose_one(bases, SNP_PROBS)
+    return genome[:loc] + choice + genome[loc + 1 :]
 
 
 def _mutate_other(genome, max_num_mutations, locations):
@@ -172,7 +176,7 @@ class PersonGenerator:
 
         Genetic sexes are chosen using weighted probabilities.
         """
-        person.gsex = random.choices(self.GSEX, weights=self.GSEX_PROBS)[0]
+        person.gsex = _choose_one(self.GSEX, self.GSEX_PROBS)
 
     def make_weight(self, person, reference, individual):
         """Generate a random weight.
@@ -212,18 +216,36 @@ def adjust_weight(person):
 # --------------------------------------------------------------------------------------
 
 
-def _write(output_stem, genomes, people):
+def _write_summary(writer, options, genomes, people):
+    """Write summary information interactive use."""
+    print("parameters:")
+    for key in vars(options):
+        print(f"- {key}: {getattr(options, key)}")
+    print(genomes, file=writer)
+    for p in people:
+        print(p, file=writer)
+
+
+def _write_files(options, genomes, people):
     """Write people as CSV."""
     assert people
-    _write_overall(output_stem, people)
-    _write_reference_genome(output_stem, genomes)
-    _write_variants(output_stem, genomes, people)
-    _write_people(output_stem, people)
+    _write_options(options)
+    _write_overall(options, people)
+    _write_reference_genome(options, genomes)
+    _write_variants(options, genomes, people)
+    _write_people(options, people)
 
 
-def _write_overall(output_stem, people):
+def _write_options(options):
+    """Save parameter settings."""
+    filename = f"{options.output_stem}-parameters.json"
+    with open(filename, "w") as writer:
+        json.dump(vars(options), writer)
+
+
+def _write_overall(options, people):
     """Write DNA sequences and people for reference."""
-    filename = f"{output_stem}-overall.csv"
+    filename = f"{options.output_stem}-overall.csv"
     headings = people[0].dict().keys()
     with open(filename, "w") as raw:
         writer = csv.DictWriter(raw, fieldnames=headings)
@@ -232,31 +254,31 @@ def _write_overall(output_stem, people):
             writer.writerow(person.dict())
 
 
-def _write_reference_genome(output_stem, genomes):
+def _write_reference_genome(options, genomes):
     """Save the reference genome and related information."""
-    filename = f"{output_stem}-reference.json"
+    filename = f"{options.output_stem}-reference.json"
     data = {"genome": genomes.reference, "locations": list(sorted(genomes.locations))}
     with open(filename, "w") as writer:
         json.dump(data, writer)
 
 
-def _write_variants(output_stem, genomes, people):
+def _write_variants(options, genomes, people):
     """Write one variant file per person."""
-    width = len(str(len(people)))
+    width = max(2, len(str(len(people))))
     for (pid, person) in enumerate(people):
-        pid_str = str(pid).zfill(width)
-        filename = f"{output_stem}-pid{pid_str}.csv"
+        pid_str = str(pid + 1).zfill(width)
+        filename = f"{options.output_stem}-pid{pid_str}.csv"
         with open(filename, "w") as raw:
             writer = csv.DictWriter(raw, fieldnames=["loc", "base"])
             writer.writeheader()
             for i in range(len(genomes.reference)):
                 if person.genome[i] != genomes.reference[i]:
-                    writer.writerow({"loc": i, "base": person.genome[i]})
+                    writer.writerow({"loc": i + 1, "base": person.genome[i]})
 
 
-def _write_people(output_stem, people):
+def _write_people(options, people):
     """Write phenotypic data for people."""
-    filename = f"{output_stem}-people.csv"
+    filename = f"{options.output_stem}-people.csv"
     headings = people[0].dict()
     del headings["genome"]
     headings["pid"] = 0
@@ -266,7 +288,7 @@ def _write_people(output_stem, people):
         for (pid, person) in enumerate(people):
             details = person.dict()
             del details["genome"]
-            details["pid"] = pid
+            details["pid"] = pid + 1
             writer.writerow(details)
 
 
@@ -275,8 +297,17 @@ def _write_people(output_stem, people):
 # --------------------------------------------------------------------------------------
 
 
+def _choose_one(values, weights):
+    """Convenience wrapper to choose a single items with weighted probabilities."""
+    return random.choices(values, weights=weights, k=1)[0]
+
+
 def _other_bases(seq, loc):
-    """Create a list of bases minus the one in the sequence at that location."""
+    """Create a list of bases minus the one in the sequence at that location.
+
+    We return a list instead of a set because the result is used in random.choices(),
+    which requires an indexable sequence.
+    """
     return list(set(DNA) - {seq[loc]})
 
 
@@ -296,25 +327,40 @@ def main():
     options = parse_args()
     random.seed(options.seed)
     genomes, people = generate(options)
-    _write(options.output_stem, genomes, people)
+    if options.output_stem:
+        _write_files(options, genomes, people)
+    else:
+        _write_summary(sys.stdout, options, genomes, people)
 
 
 def parse_args():
     """Get command-line arguments."""
     parser = argparse.ArgumentParser()
-    parser.add_argument("--length", type=int, help="genome length")
-    parser.add_argument("--num_genomes", type=int, help="number of genomes (people)")
+    parser.add_argument("--parameters", type=str, default=None, help="JSON parameter file")
+    parser.add_argument("--length", type=int, default=None, help="genome length")
+    parser.add_argument("--num_genomes", type=int, default=None, help="number of genomes (people)")
     parser.add_argument(
-        "--num_mutations", type=int, help="number of significant mutations"
+        "--num_mutations", type=int, default=None, help="number of significant mutations"
     )
     parser.add_argument(
         "--max_num_other_mutations",
         type=int,
+        default=None,
         help="maximum number of other mutations per person",
     )
-    parser.add_argument("--seed", type=int, help="RNG seed")
-    parser.add_argument("--output_stem", type=str, help="output path/file stem")
-    return parser.parse_args()
+    parser.add_argument("--seed", type=int, default=None, help="RNG seed")
+    parser.add_argument("--output_stem", type=str, default=None, help="output path/file stem")
+
+    options = parser.parse_args()
+    if options.parameters:
+        assert (options.length is None) and (options.num_genomes is None) and (options.num_mutations is None) and (options.max_num_other_mutations is None), "Cannot specify individual parameters and parameter file"
+        with open(options.parameters, "r") as reader:
+            parameters = json.load(reader)
+            for key in parameters:
+                setattr(options, key, parameters[key])
+    else:
+        assert options.seed is not None, "Must specify random number seed"
+    return options
 
 
 def generate(options):
