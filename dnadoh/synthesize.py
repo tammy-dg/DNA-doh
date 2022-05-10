@@ -5,7 +5,6 @@ import csv
 import json
 import random
 import sys
-
 from typing import List, Optional
 
 from pydantic import BaseModel
@@ -81,12 +80,15 @@ def random_genomes(length, num_genomes, num_snps, max_num_other_mutations):
     for loc in locations:
         candidates = _other_bases(reference, loc)
         bases = [reference[loc]] + random.sample(candidates, k=len(candidates))
-        individuals = [_mutate_significant(reference, ind, loc, bases) for ind in individuals]
+        individuals = [
+            _mutate_significant(reference, ind, loc, bases) for ind in individuals
+        ]
 
     # Introduce other random mutations.
     other_locations = list(set(range(length)) - set(locations))
     individuals = [
-        _mutate_other(ind, max_num_other_mutations, other_locations) for ind in individuals
+        _mutate_other(ind, max_num_other_mutations, other_locations)
+        for ind in individuals
     ]
 
     # Return structure.
@@ -336,11 +338,18 @@ def main():
 def parse_args():
     """Get command-line arguments."""
     parser = argparse.ArgumentParser()
-    parser.add_argument("--parameters", type=str, default=None, help="JSON parameter file")
-    parser.add_argument("--length", type=int, default=None, help="genome length")
-    parser.add_argument("--num_genomes", type=int, default=None, help="number of genomes (people)")
     parser.add_argument(
-        "--num_mutations", type=int, default=None, help="number of significant mutations"
+        "--parameters", type=str, default=None, help="JSON parameter file"
+    )
+    parser.add_argument("--length", type=int, default=None, help="genome length")
+    parser.add_argument(
+        "--num_genomes", type=int, default=None, help="number of genomes (people)"
+    )
+    parser.add_argument(
+        "--num_mutations",
+        type=int,
+        default=None,
+        help="number of significant mutations",
     )
     parser.add_argument(
         "--max_num_other_mutations",
@@ -349,11 +358,18 @@ def parse_args():
         help="maximum number of other mutations per person",
     )
     parser.add_argument("--seed", type=int, default=None, help="RNG seed")
-    parser.add_argument("--output_stem", type=str, default=None, help="output path/file stem")
+    parser.add_argument(
+        "--output_stem", type=str, default=None, help="output path/file stem"
+    )
 
     options = parser.parse_args()
     if options.parameters:
-        assert (options.length is None) and (options.num_genomes is None) and (options.num_mutations is None) and (options.max_num_other_mutations is None), "Cannot specify individual parameters and parameter file"
+        assert (
+            (options.length is None)
+            and (options.num_genomes is None)
+            and (options.num_mutations is None)
+            and (options.max_num_other_mutations is None)
+        ), "Cannot specify individual parameters and parameter file"
         with open(options.parameters, "r") as reader:
             parameters = json.load(reader)
             for key in parameters:
