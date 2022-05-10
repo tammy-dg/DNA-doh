@@ -374,8 +374,8 @@ def parse_args():
             parameters = json.load(reader)
             for key in parameters:
                 setattr(options, key, parameters[key])
-    else:
-        assert options.seed is not None, "Must specify random number seed"
+
+    assert options.seed is not None, "Must specify random number seed"
     return options
 
 
