@@ -66,26 +66,31 @@ class FileCache:
         self.setup_cache()
 
         
-    def get(self, filename):
+    def get(self, requested_file):
         """Return path to cached copy of file, getting as needed."""
-        cache_path = Path(self.cache_dir, filename)
 
-        if not self.check_if_in_cache(cache_path):
-            # check if valid URL, which implies it can be downloaded
-            if validators.url(filename):
-                self.handle_remote_url(filename)
-            else:
-                self._get_file(filename, cache_path)
-                remote_path = Path(self.remote_url, filename)
+        # special handling of URLs
+        if validators.url(requested_file):
+            # extact filename from URL as that'll be how it's saved in the cache that we need to check
+            extracted_filename = Path(requested_file).name
+            cache_path = Path(self.cache_dir, extracted_filename)
+            remote_path = requested_file
+        else:
+            cache_path = Path(self.cache_dir, requested_file)
+            remote_path = Path(self.remote_url, requested_file)
+
+        # first check if file is in the cache
+        if cache_path.exists():
+            # confirm that it's in the cache index and if not then add it
+            if not self.check_if_in_cache(cache_path):
                 self.add_to_cache_index(remote_path, cache_path)
         else:
-            # check whether the file is actually on disk in local 
-            if cache_path.exists():
-                pass
+            if validators.url(requested_file):
+                self._download_file(requested_file, cache_path)
             else:
-                self._get_file(filename, cache_path)
-                remote_path = Path(self.remote_url, filename)
-                self.add_to_cache_index(filename, cache_path)
+                self.handle_local_file(requested_file, cache_path)
+        
+        return str(cache_path)
 
     def clear(self):
         """Clear the cache, deleting local files."""
@@ -108,26 +113,21 @@ class FileCache:
         content_length = header.get("content-length", None)
         # i think content length only works for txt files? couldn't see one with an image
         if content_length and content_length > DOWNLOAD_LIMIT:  # this is in bytes
-            print(f"File is too large (> {DOWNLOAD_LIMIT} bytes)")
-            return False
+            raise RuntimeError(f"{remote_url} is too large (> {DOWNLOAD_LIMIT} bytes).")
         # TODO: file type restrictions?
         r = requests.get(remote_url, allow_redirects=True)
         if r.status_code == 200:
             with open(local_path, "wb") as fhandle:
                 fhandle.write(r.content)
-            return True
+            self.add_to_cache_index(remote_url, local_path)
         else:
-            return False
-
-    def handle_remote_url(self, remote_url):
-        # extact filename from URL
-        extracted_filename = Path(remote_url).name
-        cache_path = Path(self.cache_dir, extracted_filename)
-        if self._download_file(remote_url, cache_path):
-            self.add_to_cache_index(remote_url, cache_path)
-        else:
-            # download failed
             raise RuntimeError(f"{remote_url} could not be downloaded.")
+        
+    def handle_local_file(self, requested_file, cache_path):
+        """Processes a file requested from a local directory"""
+        self._get_file(requested_file, cache_path)
+        remote_path = Path(self.remote_url, requested_file)
+        self.add_to_cache_index(remote_path, cache_path)
 
     def setup_cache(self):
         """Creates an index for the cache if it doesn't exist"""
