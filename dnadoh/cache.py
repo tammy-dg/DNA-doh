@@ -49,6 +49,7 @@ DOWNLOAD_LIMIT = 2.5e8
 CACHE_INDEX = "cache_index.csv"
 CACHE_HEADER = ["cache_path", "remote_path"]
 
+
 class FileCache:
     """Cache large remote files."""
 
@@ -57,16 +58,15 @@ class FileCache:
             self.cache_dir = cache_dir
         else:
             self.cache_dir = CONFIG["cache"]
-        
+
         if remote_url:
             self.remote_url = remote_url
         else:
             self.remote_url = CONFIG["remote"]
-        
+
         self.cache_index = Path(self.cache_dir, CACHE_INDEX)
         self.setup_cache()
 
-        
     def get(self, requested_file):
         """Return path to cached copy of file, getting as needed."""
 
@@ -90,7 +90,7 @@ class FileCache:
                 self._download_file(requested_file, cache_path)
             else:
                 self.handle_local_file(requested_file, cache_path)
-        
+
         return str(cache_path)
 
     def clear(self):
@@ -112,7 +112,9 @@ class FileCache:
         header = h.headers
         content_length = header.get("content-length", None)  # this is case insensitive
         if content_length is None:
-            raise RuntimeError(f"Cannot validate the size of the requested file: {remote_url}. Not downloading.")
+            raise RuntimeError(
+                f"Cannot validate the size of the requested file: {remote_url}. Not downloading."
+            )
         elif content_length and content_length > DOWNLOAD_LIMIT:  # this is in bytes
             raise RuntimeError(f"{remote_url} is too large (> {DOWNLOAD_LIMIT} bytes).")
         r = requests.get(remote_url, allow_redirects=True)
@@ -122,7 +124,7 @@ class FileCache:
             self.add_to_cache_index(remote_url, local_path)
         else:
             raise RuntimeError(f"{remote_url} could not be downloaded.")
-        
+
     def handle_local_file(self, requested_file, cache_path):
         """Processes a file requested from a local directory"""
         self._get_file(requested_file, cache_path)
@@ -149,7 +151,9 @@ class FileCache:
         """Adds a file to the cache index"""
         with open(self.cache_index, "a") as fhandle:
             writer = csv.DictWriter(fhandle, fieldnames=CACHE_HEADER)
-            writer.writerow({
-                CACHE_HEADER[0]: local_path,
-                CACHE_HEADER[1]: remote_path,
-            })
+            writer.writerow(
+                {
+                    CACHE_HEADER[0]: local_path,
+                    CACHE_HEADER[1]: remote_path,
+                }
+            )

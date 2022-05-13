@@ -10,11 +10,12 @@ from dnadoh.cache import FileCache, CACHE_INDEX, CONFIG, CACHE_HEADER
 
 TEST_FNAME = "foo.txt"
 
+
 @pytest.fixture()
 def cache(fs):
     for path in CONFIG.values():
         fs.create_dir(path)
-    cacher = FileCache()    
+    cacher = FileCache()
     return cacher
 
 
@@ -23,9 +24,10 @@ def non_empty_cache(fs):
     for path in CONFIG.values():
         fs.create_dir(path)
 
-    cache = FileCache()    
+    cache = FileCache()
     fs.create_file(Path(cache.cache_dir, TEST_FNAME))
     return cache
+
 
 def assert_file_in_index(cache, expected_data):
     """Utility function to check that the file is in the index.
@@ -33,6 +35,7 @@ def assert_file_in_index(cache, expected_data):
     with open(cache.cache_index, "r") as fhandle:
         data = csv.DictReader(fhandle)
         assert next(data) == expected_data
+
 
 def test_init(fs):
     """Tests that the cache and remote directories are set properly"""
@@ -52,7 +55,7 @@ def test_get_when_not_in_cache(fs, cache):
     cache.get(fname)
     expected = {
         CACHE_HEADER[0]: str(Path(cache.cache_dir, fname)),
-        CACHE_HEADER[1]: str(Path(cache.remote_url, fname))
+        CACHE_HEADER[1]: str(Path(cache.remote_url, fname)),
     }
     assert Path(cache.cache_dir, fname).exists()
     assert_file_in_index(cache, expected)
@@ -64,7 +67,7 @@ def test_get_when_cached(mock, non_empty_cache):
     cache_path = non_empty_cache.get(TEST_FNAME)
     expected = {
         CACHE_HEADER[0]: str(Path(non_empty_cache.cache_dir, TEST_FNAME)),
-        CACHE_HEADER[1]: str(Path(non_empty_cache.remote_url, TEST_FNAME))
+        CACHE_HEADER[1]: str(Path(non_empty_cache.remote_url, TEST_FNAME)),
     }
     assert mock.call_count == 0
     assert cache_path == str(Path(non_empty_cache.cache_dir, TEST_FNAME))
@@ -76,12 +79,14 @@ def test_in_cache_index_but_not_dir(fs, cache):
     cache directory, that it is fetched"""
     fname = "fake_file.txt"
     # sabotage the index by adding to it
-    with open(cache.cache_index, 'a') as fhandle:
+    with open(cache.cache_index, "a") as fhandle:
         writer = csv.DictWriter(fhandle, fieldnames=CACHE_HEADER)
-        writer.writerow({
-            CACHE_HEADER[0]: str(Path(cache.cache_dir, fname)),
-            CACHE_HEADER[1]: "/random/directory"
-        })
+        writer.writerow(
+            {
+                CACHE_HEADER[0]: str(Path(cache.cache_dir, fname)),
+                CACHE_HEADER[1]: "/random/directory",
+            }
+        )
     with mock.patch.object(FileCache, "handle_local_file") as mocked_function:
         cache.get("fake_file.txt")
         assert mocked_function.call_count == 1
@@ -95,5 +100,3 @@ def test_remote_download(cache):
     cache.get(remote_file)
     print(cache.cache_index)
     cache.clear()
-
-
