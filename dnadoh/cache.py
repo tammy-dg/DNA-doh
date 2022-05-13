@@ -39,10 +39,11 @@ from urllib.parse import urljoin
 
 
 CONFIG = {
-    "cache": Path(__file__).parent.parent.joinpath("cache"),  # prints DNA-doh rootdir + cache
+    "cache": Path(__file__).parent.parent.joinpath("cache"),
     "remote": Path(__file__).parent.parent.joinpath("remote"),
 }
 
+# Arbitrary limit of 250MB - change as needed
 DOWNLOAD_LIMIT = 2.5e8
 
 CACHE_INDEX = "cache_index.csv"
@@ -101,7 +102,6 @@ class FileCache:
     def _get_file(self, remote_path, local_path):
         """Simulate getting a remote file."""
         remote_path = Path(self.remote_url, remote_path)
-        # print(remote_path)
         if not remote_path.exists():
             raise ValueError(f"{remote_path} does not exist")
         shutil.copyfile(remote_path, local_path)
@@ -110,11 +110,11 @@ class FileCache:
         """Downloads a file from a remote url"""
         h = requests.head(remote_url, allow_redirects=True)
         header = h.headers
-        content_length = header.get("content-length", None)
-        # i think content length only works for txt files? couldn't see one with an image
-        if content_length and content_length > DOWNLOAD_LIMIT:  # this is in bytes
+        content_length = header.get("content-length", None)  # this is case insensitive
+        if content_length is None:
+            raise RuntimeError(f"Cannot validate the size of the requested file: {remote_url}. Not downloading.")
+        elif content_length and content_length > DOWNLOAD_LIMIT:  # this is in bytes
             raise RuntimeError(f"{remote_url} is too large (> {DOWNLOAD_LIMIT} bytes).")
-        # TODO: file type restrictions?
         r = requests.get(remote_url, allow_redirects=True)
         if r.status_code == 200:
             with open(local_path, "wb") as fhandle:
