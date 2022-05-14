@@ -3,4 +3,7 @@ flake8>=4.0
 isort>=5.10
 pandas>=1.4
 pydantic>=1.9
+pyfakefs>=4.5.6
 pytest>=7.1
+requests>=2.27
+validators>=0.19
