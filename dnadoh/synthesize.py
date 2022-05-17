@@ -7,6 +7,7 @@ import random
 import sys
 from typing import List, Optional
 
+import util
 from pydantic import BaseModel
 
 # --------------------------------------------------------------------------------------
@@ -122,25 +123,6 @@ def _mutate_other(genome, max_num_mutations, locations):
 # --------------------------------------------------------------------------------------
 
 
-class Person(BaseModel):
-    """An individual person.
-
-    Values marked `Optional` are filled in one at a time.
-    """
-
-    # Genome.
-    genome: str
-
-    # Age in years.
-    age: Optional[int] = None
-
-    # Genetic sex {"F", "M", "O"}.
-    gsex: Optional[str] = None
-
-    # Weight in kg.
-    weight: Optional[float] = None
-
-
 class PersonGenerator:
     """Generate a person given a set of parameters."""
 
@@ -159,9 +141,9 @@ class PersonGenerator:
     def __init__(self):
         """Construct generator."""
 
-    def make(self, reference, individual):
+    def make(self, reference, individual, pid):
         """Generate a new random person."""
-        person = Person(genome=individual)
+        person = util.Person(genome=individual, pid=pid)
         for meth in (self.make_age, self.make_gsex, self.make_weight):
             meth(person, reference, individual)
         return person
@@ -235,19 +217,19 @@ def _write_files(options, genomes, people):
     _write_overall(options, people)
     _write_reference_genome(options, genomes)
     _write_variants(options, genomes, people)
-    _write_people(options, people)
+    _write_phenotypes(options, people)
 
 
 def _write_options(options):
     """Save parameter settings."""
-    filename = f"{options.output_stem}-parameters.json"
+    filename = util.filename_parameter(options.output_stem)
     with open(filename, "w") as writer:
         json.dump(vars(options), writer)
 
 
 def _write_overall(options, people):
     """Write DNA sequences and people for reference."""
-    filename = f"{options.output_stem}-overall.csv"
+    filename = util.filename_overall(options.output_stem)
     headings = people[0].dict().keys()
     with open(filename, "w") as raw:
         writer = csv.DictWriter(raw, fieldnames=headings)
@@ -258,7 +240,7 @@ def _write_overall(options, people):
 
 def _write_reference_genome(options, genomes):
     """Save the reference genome and related information."""
-    filename = f"{options.output_stem}-reference.json"
+    filename = util.filename_reference_genome(options.output_stem)
     data = {"genome": genomes.reference, "locations": list(sorted(genomes.locations))}
     with open(filename, "w") as writer:
         json.dump(data, writer)
@@ -266,21 +248,19 @@ def _write_reference_genome(options, genomes):
 
 def _write_variants(options, genomes, people):
     """Write one variant file per person."""
-    width = max(2, len(str(len(people))))
-    for (pid, person) in enumerate(people):
-        pid_str = str(pid + 1).zfill(width)
-        filename = f"{options.output_stem}-pid{pid_str}.csv"
+    for person in people:
+        filename = util.filename_person(options.output_stem, person.pid)
         with open(filename, "w") as raw:
-            writer = csv.DictWriter(raw, fieldnames=["loc", "base"])
+            writer = csv.DictWriter(raw, fieldnames=["location", "base"])
             writer.writeheader()
             for i in range(len(genomes.reference)):
                 if person.genome[i] != genomes.reference[i]:
-                    writer.writerow({"loc": i + 1, "base": person.genome[i]})
+                    writer.writerow({"location": i + 1, "base": person.genome[i]})
 
 
-def _write_people(options, people):
+def _write_phenotypes(options, people):
     """Write phenotypic data for people."""
-    filename = f"{options.output_stem}-people.csv"
+    filename = util.filename_phenotypes(options.output_stem)
     headings = people[0].dict()
     del headings["genome"]
     headings["pid"] = 0
@@ -388,7 +368,10 @@ def generate(options):
         options.max_num_other_mutations,
     )
     pg = PersonGenerator()
-    people = [pg.make(genomes.reference, i) for i in genomes.individuals]
+    people = [
+        pg.make(genomes.reference, ind, pid + 1)
+        for (pid, ind) in enumerate(genomes.individuals)
+    ]
     adjust_all(genomes, people, adjust_weight)
     return genomes, people
 
