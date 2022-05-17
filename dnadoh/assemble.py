@@ -15,12 +15,12 @@ def read_combined(stem):
     variants = _read_genomes(stem, phenotypes)
     variants = variants.rename(columns={"base": "alternate"})
     variants["reference"] = variants.apply(
-        lambda x: reference["genome"][x["loc"]-1], axis=1)
+        lambda x: reference["genome"][x["location"] - 1], axis=1
+    )
     # re-arrange columns as convention is for reference to come before alternate
-    new_cols = ["loc", "reference", "alternate", "pid"]
+    new_cols = ["location", "reference", "alternate", "pid"]
     variants = variants[new_cols]
-    combined = phenotypes.set_index("pid").join(variants.set_index("pid"))
-    # combined = pd.merge(phenotypes, variants, on="pid", how="outer")
+    combined = pd.merge(phenotypes, variants, on="pid", how="outer")
     return combined
 
 
@@ -51,5 +51,6 @@ def _read_phenotypes(stem):
 
 if __name__ == "__main__":
     import sys
+
     combined = read_combined(sys.argv[1])
     print(combined)
