@@ -251,11 +251,11 @@ def _write_variants(options, genomes, people):
     for person in people:
         filename = util.filename_person(options.output_stem, person.pid)
         with open(filename, "w") as raw:
-            writer = csv.DictWriter(raw, fieldnames=["loc", "base"])
+            writer = csv.DictWriter(raw, fieldnames=["location", "base"])
             writer.writeheader()
             for i in range(len(genomes.reference)):
                 if person.genome[i] != genomes.reference[i]:
-                    writer.writerow({"loc": i + 1, "base": person.genome[i]})
+                    writer.writerow({"location": i + 1, "base": person.genome[i]})
 
 
 def _write_phenotypes(options, people):
