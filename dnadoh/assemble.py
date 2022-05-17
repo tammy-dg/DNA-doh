@@ -9,9 +9,18 @@ import util
 
 def read_combined(stem):
     """Assemble data from a set of files."""
+    reference = read_reference_genome(stem)
     phenotypes = _read_phenotypes(stem)
+
     variants = _read_genomes(stem, phenotypes)
+    variants = variants.rename(columns={"base": "alternate"})
+    variants["reference"] = variants.apply(
+        lambda x: reference["genome"][x["loc"]-1], axis=1)
+    # re-arrange columns as convention is for reference to come before alternate
+    new_cols = ["loc", "reference", "alternate", "pid"]
+    variants = variants[new_cols]
     combined = phenotypes.set_index("pid").join(variants.set_index("pid"))
+    # combined = pd.merge(phenotypes, variants, on="pid", how="outer")
     return combined
 
 
@@ -42,7 +51,5 @@ def _read_phenotypes(stem):
 
 if __name__ == "__main__":
     import sys
-    reference = read_reference_genome(sys.argv[1])
-    print(reference)
     combined = read_combined(sys.argv[1])
     print(combined)
