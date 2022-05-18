@@ -123,6 +123,31 @@ def _mutate_other(genome, max_num_mutations, locations):
 # --------------------------------------------------------------------------------------
 
 
+PID_WIDTH = 6  # number of digits in PID
+
+
+class Person(BaseModel):
+    """An individual person.
+
+    Values marked `Optional` are filled in one at a time.
+    """
+
+    # Personal identifier.
+    pid: str
+
+    # Genome.
+    genome: str
+
+    # Age in years.
+    age: Optional[int] = None
+
+    # Genetic sex {"F", "M", "O"}.
+    gsex: Optional[str] = None
+
+    # Weight in kg.
+    weight: Optional[float] = None
+
+
 class PersonGenerator:
     """Generate a person given a set of parameters."""
 
@@ -143,9 +168,9 @@ class PersonGenerator:
 
     def make(self, reference, individual, pid):
         """Generate a new random person."""
-        person = util.Person(genome=individual, pid=pid)
-        for meth in (self.make_age, self.make_gsex, self.make_weight):
-            meth(person, reference, individual)
+        person = Person(pid=self._make_pid(pid), genome=individual)
+        for method in (self.make_age, self.make_gsex, self.make_weight):
+            method(person, reference, individual)
         return person
 
     def make_age(self, person, reference, individual):
@@ -171,6 +196,10 @@ class PersonGenerator:
         mean = self.WEIGHT_MEANS[person.gsex]
         std_dev = mean * self.WEIGHT_RSD
         person.weight = _truncate(random.gauss(mean, std_dev), 1)
+
+    def _make_pid(self, i):
+        """Create personal identifier."""
+        return str(i).zfill(PID_WIDTH)
 
 
 def adjust_all(genomes, people, func):
@@ -263,14 +292,12 @@ def _write_phenotypes(options, people):
     filename = util.filename_phenotypes(options.output_stem)
     headings = people[0].dict()
     del headings["genome"]
-    headings["pid"] = 0
     with open(filename, "w") as raw:
         writer = csv.DictWriter(raw, fieldnames=headings)
         writer.writeheader()
-        for (pid, person) in enumerate(people):
+        for person in people:
             details = person.dict()
             del details["genome"]
-            details["pid"] = pid + 1
             writer.writerow(details)
 
 
@@ -368,10 +395,7 @@ def generate(options):
         options.max_num_other_mutations,
     )
     pg = PersonGenerator()
-    people = [
-        pg.make(genomes.reference, ind, pid + 1)
-        for (pid, ind) in enumerate(genomes.individuals)
-    ]
+    people = [pg.make(genomes.reference, ind, i + 1) for (i, ind) in enumerate(genomes.individuals)]
     adjust_all(genomes, people, adjust_weight)
     return genomes, people
 
