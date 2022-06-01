@@ -30,7 +30,7 @@ instance of the cache that would have its own remote and cache directory.
 So I could initiate two different file caches that have different cache directories
 where files are downloaded to. For example:
 
-```
+```python
 from dnadoh.cache import FileCache
 
 first_cache = FileCache('/tmp/cache_dir_01/', '/tmp/remote_dir/')
@@ -52,7 +52,7 @@ and then having class methods to manipulate and operate on the file cache.
 
 This would have looked like something like this:
 
-```
+```python
 import shutil
 from pathlib import Path
 
@@ -85,7 +85,8 @@ would be the same across all FileCache objects and we would only
 have one file cache existing (as dictated by `CONFIG`).
 
 To test this, I can do:
-```
+
+```python
 first = FileCache
 print(first._cache)  # returns '{}'
 first.get("test.txt")  
@@ -110,7 +111,7 @@ perform our operations on would have to be passed in to each function call.
 
 For example:
 
-```
+```python
 import shutil
 
 class FileCache:
