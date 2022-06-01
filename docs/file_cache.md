@@ -96,7 +96,7 @@ print(second._cache)  # returns '{'test.txt': PosixPath('temp/cache/test.txt')}'
 ```
 
 The fact that I created a new instance of the FileCache, `second`,
-and printed out the class variable `_cahce`, and the file that was 
+and printed out the class variable `cache`, and the file that was 
 downloaded using the first instance was present,
 indicates that the file cache is shared between all instances of the class.
 Therefore, it would not have been possible to have multiple, separate
