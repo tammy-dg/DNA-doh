@@ -2,9 +2,10 @@
 
 import csv
 import json
+import sys
+import util
 
 import pandas as pd
-import util
 
 
 def read_combined(stem):
@@ -48,9 +49,8 @@ def _read_phenotypes(stem):
     filename = util.filename_phenotypes(stem)
     return pd.read_csv(filename)
 
-
-if __name__ == "__main__":
-    import sys
-
-    combined = read_combined(sys.argv[1])
-    print(combined)
+def assemble(root, write_csv=False):
+    combined = read_combined(root)
+    if write_csv:
+        combined.to_csv(f"{sys.argv[1]}-assembled.csv", index=False)
+    return combined
