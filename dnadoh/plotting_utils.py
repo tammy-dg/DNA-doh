@@ -2,8 +2,6 @@ from scipy import stats
 import plotly.express as px
 import plotly.graph_objects as go
 
-# stats.ttest_ind(tips[tips['day']=='Thur'].total_bill,tips[tips['day']=='Fri'].total_bill)
-# stats.ttest_ind(tips[tips['day']=='Thur'].total_bill,tips[tips['day']=='Sat'].total_bill)
 
 def add_pvalue_annotation(df, fig, base, y_range, symbol=''):
     """
