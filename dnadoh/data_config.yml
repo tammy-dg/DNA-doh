@@ -1,0 +1,2 @@
+DNA: "ACGT"
+SNP_PROBS: !!python/tuple [0.50, 0.25, 0.13, 0.12]

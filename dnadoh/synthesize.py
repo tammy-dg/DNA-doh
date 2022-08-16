@@ -5,6 +5,8 @@ import csv
 import json
 import random
 import sys
+import os
+import yaml
 from typing import List, Optional
 
 import util
@@ -52,6 +54,11 @@ class GenePool(BaseModel):
             ]
         )
 
+def load_data_config():
+    """Load a dictionary from the yaml config file."""
+    with open(os.path.join(os.path.dirname(__file__), "data_config.yml")) as fs:
+        data_config = yaml.load(fs, Loader=yaml.SafeLoader)
+    return data_config
 
 def random_sequence(length):
     """Generate a random sequence of bases of the specified length."""
@@ -335,6 +342,8 @@ def main():
     """Main driver."""
     options = parse_args()
     random.seed(options.seed)
+    config = load_data_config()
+    set_config_values(config)
     genomes, people = generate(options)
     if options.output_stem:
         _write_files(options, genomes, people)
@@ -385,6 +394,18 @@ def parse_args():
     assert options.seed is not None, "Must specify random number seed"
     return options
 
+def load_data_config():
+    """Load a dictionary from the yaml config file."""
+    with open(os.path.join(os.path.dirname(__file__), "data_config.yml")) as fs:
+        data_config = yaml.load(fs, Loader=yaml.SafeLoader)
+    return data_config
+
+def set_config_values(config):
+    """Set global varaibels using config file."""
+    global DNA
+    global SNP_PROBS
+    DNA = config["DNA"]
+    SNP_PROBS = config["SNP_PROBS"]
 
 def generate(options):
     """Generate genomes and people from parameters."""
