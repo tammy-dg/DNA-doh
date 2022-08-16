@@ -52,6 +52,7 @@ def plot_boxplot(df: pd.DataFrame, y_variable: str, location: int) -> None:
     leftover_pids = all_pids.difference(subset_pids)
 
     # build df of info for pids that have the reference base at this position
+    # drop duplicates due to joining of phenotypic + variant data
     data = df[["pid", "age", "gsex", "weight"]].drop_duplicates()
     data = data[data["pid"].isin(leftover_pids)]
     data = data.assign(
