@@ -49,8 +49,10 @@ def _read_phenotypes(stem):
     filename = util.filename_phenotypes(stem)
     return pd.read_csv(filename)
 
+
 def assemble(root, write_csv=False):
     combined = read_combined(root)
     if write_csv:
-        combined.to_csv(f"{sys.argv[1]}-assembled.csv", index=False)
+        filename = util.filename_assembled_data(root)
+        combined.to_csv(filename, index=False)
     return combined

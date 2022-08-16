@@ -56,6 +56,11 @@ def filename_reference_genome(stem):
     return f"{stem}-reference.json"
 
 
+def filename_assembled_data(stem):
+    """Where to store phenotypic data joined to variant data for all individuals."""
+    return f"{stem}-assembled.csv"
+
+
 def pid_width(length):
     """Number of digits in personal information files' names."""
     return max(2, len(str(length)))

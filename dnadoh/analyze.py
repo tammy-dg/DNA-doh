@@ -1,31 +1,30 @@
+"""
+Creates a dashboard of one plot per genome position 
+with boxplots of the measurement of weight per base at that position.
+Also performs t-tests of each alternative base to the reference base.
+"""
+
 import argparse
 
 import pandas as pd
-import matplotlib.pyplot as plt
-import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-from plotly.tools import FigureFactory as FF
-from statannot import add_stat_annotation
-from dash import Dash, dcc, html, Input, Output, dash_table
+from dash import Dash, dcc, html, Input, Output
 from scipy import stats
 
 from assemble import assemble
-from plotting_utils import add_pvalue_annotation
 
 BASES = ["A", "C", "G", "T"]
 
 
-def get_unique_locations(df: pd.DataFrame):
+def get_unique_locations(df: pd.DataFrame) -> list:
     """Get unique locations with an alternate base"""
-    locations = df["location"].drop_duplicates().dropna().to_list()
-    return locations
+    return df["location"].drop_duplicates().dropna().to_list()
 
 
 def _get_pids(df: pd.DataFrame) -> set:
-    pids = set(df["pid"].drop_duplicates().to_list())
-    return pids
+    return set(df["pid"].drop_duplicates().to_list())
 
 
 def plot_boxplot(df: pd.DataFrame, y_variable: str, location: int) -> None:
@@ -35,8 +34,10 @@ def plot_boxplot(df: pd.DataFrame, y_variable: str, location: int) -> None:
     """
     # subset dataframe to the location
     subset_df = df[df["location"] == location]
+
     # get the reference base
     reference = set(subset_df["reference"].to_list())
+
     # there should only be one
     assert (
         len(reference) == 1
@@ -49,7 +50,8 @@ def plot_boxplot(df: pd.DataFrame, y_variable: str, location: int) -> None:
     all_pids = _get_pids(df)
     subset_pids = _get_pids(subset_df)
     leftover_pids = all_pids.difference(subset_pids)
-    # build info to concatenate back
+
+    # build df of info for pids that have the reference base at this position
     data = df[["pid", "age", "gsex", "weight"]].drop_duplicates()
     data = data[data["pid"].isin(leftover_pids)]
     data = data.assign(
@@ -57,7 +59,9 @@ def plot_boxplot(df: pd.DataFrame, y_variable: str, location: int) -> None:
         reference=[reference] * len(data),
         alternate=["reference"] * len(data),
     )
-    # concatenate to subset df now
+
+    # concatenate to the df with the pids with the reference base to the 
+    # originally subset df so that we get one df with all pids
     concat_df = pd.concat([subset_df, data], axis=0).sort_values(by=["pid"])
 
     fig = make_subplots(
