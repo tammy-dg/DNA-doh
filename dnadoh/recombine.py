@@ -4,12 +4,12 @@ averaged with some noise.
 """
 
 from typing import List
+from .synthesize import PersonGenerator, Person
 
 def recombine(
     person1: Person,
     person2: Person,
     reference_genome: str,
-    person_gen: PersonGenerator,
     pid: str,
     recombination_prob: List[float],
     recombination_loci: List[int]
@@ -25,12 +25,17 @@ def recombine(
     genome1 = person1.genome
     genome2 = person2.genome
 
+    # If the index 0 is not in the list of recombination loci
+    # Add it to initialize recombination by selecting either genome
+    # with equal probability
     if 0 not in recombination_loci:
         recombination_loci = [0] + recombination_loci
         recombination_prob = [0.5] + recombination_prob
+    # Adding the last coordinate of the dna to provide an end index
+    # for the last segment that can be recombined
     if len(genome1) not in recombination_loci:
         recombination_loci = recombination_loci + [len(genome1)]
-        recombination_prob = recombination_prob + [0.5]
+        recombination_prob = recombination_prob + [0]
 
     ## Ordering
     ordered_prob = [prob for _, prob in sorted(zip(recombination_loci, recombination_prob))]
@@ -46,5 +51,6 @@ def recombine(
     recombination_genome = "".join(recombination_genome)
 
     # Generate a new person with the recombinant genome
-    person3 = person_gen(reference_genome, recombination_genome, pid)
+    person_generator = PersonGenerator()
+    person3 = person_generator.make(reference_genome, recombination_genome, pid)
     return person3
