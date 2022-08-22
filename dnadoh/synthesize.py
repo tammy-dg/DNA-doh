@@ -147,6 +147,9 @@ class Person(BaseModel):
     # Weight in kg.
     weight: Optional[float] = None
 
+    # Family ID
+    family_id: Optional[int] = None
+
 
 class PersonGenerator:
     """Generate a person given a set of parameters."""
@@ -163,13 +166,14 @@ class PersonGenerator:
     WEIGHT_MEANS = {"F": 80.0, "M": 87.0, "O": 84.0}
     WEIGHT_RSD = 0.12
 
-    def __init__(self):
+    def __init__(self, num_genomes):
         """Construct generator."""
+        self.num_genomes = num_genomes # required for famiy RNG
 
     def make(self, reference, individual, pid):
         """Generate a new random person."""
         person = Person(pid=self._make_pid(pid), genome=individual)
-        for method in (self.make_age, self.make_gsex, self.make_weight):
+        for method in (self.make_age, self.make_gsex, self.make_weight, self.make_family_id):
             method(person, reference, individual)
         return person
 
@@ -196,6 +200,10 @@ class PersonGenerator:
         mean = self.WEIGHT_MEANS[person.gsex]
         std_dev = mean * self.WEIGHT_RSD
         person.weight = _truncate(random.gauss(mean, std_dev), 1)
+
+    def make_family_id(self, person, reference, individual):
+        "Generate a random family ID within range of number of genomes"
+        person.family_id = random.randrange(self.num_genomes)
 
     def _make_pid(self, i):
         """Create personal identifier."""
@@ -394,7 +402,7 @@ def generate(options):
         options.num_mutations,
         options.max_num_other_mutations,
     )
-    pg = PersonGenerator()
+    pg = PersonGenerator(num_genomes=options.num_genomes)
     people = [pg.make(genomes.reference, ind, i + 1) for (i, ind) in enumerate(genomes.individuals)]
     adjust_all(genomes, people, adjust_weight)
     return genomes, people
