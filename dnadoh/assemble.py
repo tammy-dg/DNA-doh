@@ -37,7 +37,7 @@ def read_reference_genome(stem):
     """Read reference genome (sequence plus mutation location(s))."""
     filename = util.filename_reference_genome(stem)
     with open(filename, "r") as reader:
-        return json.load(reader)snipp
+        return json.load(reader)
 
 
 def _read_genomes(stem, raw_phenotypes):
@@ -80,10 +80,9 @@ def parse_args():
     assert options.input_stem is not None, "must specify an input path/file stem"
     return options
 
-
-if __name__ == "__main__":
-    import sys
-    options = parse_args()
-    combined = read_combined(options)
-    print(combined)
-    combined.to_csv("testoutput.csv", index=False)
+def assemble(root, write_csv=False):
+    combined = read_combined(root)
+    if write_csv:
+        filename = util.filename_assembled_data(root)
+        combined.to_csv(filename, index=False)
+    return combined
