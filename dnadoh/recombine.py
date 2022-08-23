@@ -22,10 +22,10 @@ def recombine(
         reference_genome (str): Reference genome
         pid (str): ID of the newly generated person
         recombination_prob (List[float]): A list of recombination probabilities (between 0 and 1)
-        recombination_loci (List[int]): A list of loci corresponding to the recombination probabilities
+        recombination_loci (List[int]): A list of loci on reference genome (base 0) corresponding to the recombination probabilities
 
     Returns:
-        Person: A person whose genome is a recombination of those of person1 and person2
+        Person: A Person object whose genome is a recombination of those of person1 and person2
     """
     # Error checking
     assert len(recombination_loci) == len(recombination_prob)
