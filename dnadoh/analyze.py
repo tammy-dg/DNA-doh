@@ -184,8 +184,6 @@ def parse_args():
         help="0 or 1 boolean - write results to csv"
     )
     options = parser.parse_args()
-    print("option below")
-    print(options.isolate_households)
     assert options.input_stem is not None, "must specify an input path/file stem"
     return options
 
