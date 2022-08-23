@@ -9,6 +9,7 @@ from typing import List, Optional
 
 import util
 from pydantic import BaseModel
+import numpy as np
 
 # --------------------------------------------------------------------------------------
 # Genomes
@@ -38,6 +39,9 @@ class GenePool(BaseModel):
 
     # Locations of mutations.
     locations: List[int]
+
+    # Family ID
+    family_id: Optional[int] = None
 
     def __str__(self):
         """Printable representation."""
@@ -147,6 +151,9 @@ class Person(BaseModel):
     # Weight in kg.
     weight: Optional[float] = None
 
+    # Household ID
+    household_id: Optional[int] = None
+
 
 class PersonGenerator:
     """Generate a person given a set of parameters."""
@@ -163,14 +170,29 @@ class PersonGenerator:
     WEIGHT_MEANS = {"F": 80.0, "M": 87.0, "O": 84.0}
     WEIGHT_RSD = 0.12
 
-    def __init__(self):
-        """Construct generator."""
+    # Avg household size, per 2021 stats
+    # https://www.statista.com/statistics/242189/disitribution-of-households-in-the-us-by-household-size/
+    # key = household size, val = proportion of households with number of people indicated by key
+    HOUSEHOLD_SIZE_DISTRIB = {1: 0.2845,
+                              2: 0.3503,
+                              3: 0.1503,
+                              4: 0.1239,
+                              5: 0.0583,
+                              6: 0.0203,
+                              7: 0.0124}
+    UPPER_BOUND = 10 # Largest possible household size, according to our model
 
+    def __init__(self, options):
+        """Construct generator."""
+        self.num_genomes = options.num_genomes # required for famiy RNG
+        self._init_household()
+        
     def make(self, reference, individual, pid):
         """Generate a new random person."""
         person = Person(pid=self._make_pid(pid), genome=individual)
-        for method in (self.make_age, self.make_gsex, self.make_weight):
+        for method in (self.make_age, self.make_gsex, self.make_weight, self.make_household_id):
             method(person, reference, individual)
+        self._iter_household()
         return person
 
     def make_age(self, person, reference, individual):
@@ -196,10 +218,41 @@ class PersonGenerator:
         mean = self.WEIGHT_MEANS[person.gsex]
         std_dev = mean * self.WEIGHT_RSD
         person.weight = _truncate(random.gauss(mean, std_dev), 1)
+    
+    def make_household_id(self, person, reference, individual):
+        person.household_id = self.hh_id
 
     def _make_pid(self, i):
         """Create personal identifier."""
         return str(i).zfill(PID_WIDTH)
+    
+    def _random_household_size(self):
+        return np.random.choice(a = [key for key in self.HOUSEHOLD_SIZE_DISTRIB.keys()], 
+                                size = 1, 
+                                p = [val for val in self.HOUSEHOLD_SIZE_DISTRIB.values()])
+
+    def _init_household(self):
+        """Initializes household-related variables"""
+
+        # Select a household size weighted by specified probabilities
+        self.hh_size =  self._random_household_size()
+
+        # Create variables to track 'current' household ID and how many individuals we've generated for that household
+        self.hh_id = 0
+        self.hh_individuals = 0
+    
+    def _iter_household(self):
+        """Iterate household variables, track number of individuals per HH and move to next HH if required"""
+        self.hh_individuals += 1
+
+        if self.hh_individuals == self.hh_size:
+            self.hh_size = self._random_household_size()
+            self.hh_id += 1
+            self.hh_individuals = 0
+        
+            
+
+        
 
 
 def adjust_all(genomes, people, func):
@@ -335,6 +388,7 @@ def main():
     """Main driver."""
     options = parse_args()
     random.seed(options.seed)
+    np.random.seed(options.seed)
     genomes, people = generate(options)
     if options.output_stem:
         _write_files(options, genomes, people)
@@ -394,7 +448,7 @@ def generate(options):
         options.num_mutations,
         options.max_num_other_mutations,
     )
-    pg = PersonGenerator()
+    pg = PersonGenerator(options)
     people = [pg.make(genomes.reference, ind, i + 1) for (i, ind) in enumerate(genomes.individuals)]
     adjust_all(genomes, people, adjust_weight)
     return genomes, people

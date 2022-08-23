@@ -117,7 +117,7 @@ def plot_boxplot(df: pd.DataFrame, y_variable: str, location: int) -> None:
 
 def main():
     options = parse_args()
-    assembled_df = assemble(options.input_stem)
+    assembled_df = assemble(options)
 
     locations = get_unique_locations(assembled_df)
     locations = sorted(locations)
@@ -158,7 +158,6 @@ def main():
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    # nothing here for now
     parser.add_argument(
         "--input_stem",
         type=str,
@@ -166,7 +165,28 @@ def parse_args():
         help="Path/file stem of synthesized data",
         required=True,
     )
+    parser.add_argument(
+        "--isolate_households",
+        type=int,
+        default=True,
+        help="0 or 1 boolean - enforce only one individual per household ID"
+    )
+    parser.add_argument(
+        "--seed", 
+        type=int,
+        default=None,
+        help="RNG seed"
+    )
+    parser.add_argument(
+        "--write-csv",
+        type=int,
+        default=True,
+        help="0 or 1 boolean - write results to csv"
+    )
     options = parser.parse_args()
+    print("option below")
+    print(options.isolate_households)
+    assert options.input_stem is not None, "must specify an input path/file stem"
     return options
 
 
