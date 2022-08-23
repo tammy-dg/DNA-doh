@@ -6,4 +6,4 @@ pydantic>=1.9
 pyfakefs>=4.5.6
 pytest>=7.1
 requests>=2.27
-validators>=0.19
+validators>=0.14
