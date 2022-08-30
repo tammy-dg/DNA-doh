@@ -4,7 +4,7 @@ averaged with some noise.
 """
 
 from typing import List
-from .synthesize import PersonGenerator, Person
+from synthesize import PersonGenerator, Person, _choose_one
 
 def recombine(
     person1: Person,
@@ -14,7 +14,19 @@ def recombine(
     recombination_prob: List[float],
     recombination_loci: List[int]
     ) -> Person:
-    """Recombine two genomes"""
+    """Recombine genomes
+
+    Args:
+        person1 (Person): A Person object to be recombined
+        person2 (Person): A Person object to be recombined
+        reference_genome (str): Reference genome
+        pid (str): ID of the newly generated person
+        recombination_prob (List[float]): A list of recombination probabilities (between 0 and 1)
+        recombination_loci (List[int]): A list of loci on reference genome (base 0) corresponding to the recombination probabilities
+
+    Returns:
+        Person: A Person object whose genome is a recombination of those of person1 and person2
+    """
     # Error checking
     assert len(recombination_loci) == len(recombination_prob)
     assert len(person1.genome) == len(person2.genome)
@@ -25,9 +37,9 @@ def recombine(
     genome1 = person1.genome
     genome2 = person2.genome
 
-    # If the index 0 is not in the list of recombination loci
-    # Add it to initialize recombination by selecting either genome
-    # with equal probability
+    # The index of 0 essentially indicates which genome we start with as the template
+    # since genome[0:<first_loci>] is essentially the first segment
+    # If the index 0 is not in the list of recombination loci, select either genome with equal probability
     if 0 not in recombination_loci:
         recombination_loci = [0] + recombination_loci
         recombination_prob = [0.5] + recombination_prob
@@ -37,7 +49,8 @@ def recombine(
         recombination_loci = recombination_loci + [len(genome1)]
         recombination_prob = recombination_prob + [0]
 
-    ## Ordering
+    ## loci are sorted in ascending order
+    ## the probabilities are sorted according to the order of the loci
     ordered_prob = [prob for _, prob in sorted(zip(recombination_loci, recombination_prob))]
     ordered_loci = sorted(recombination_loci)
 
@@ -45,6 +58,7 @@ def recombine(
     recombination_genome = []
     for i, loc in enumerate(ordered_loci[:-1]):
         genome_seg = _choose_one([1, 2], [ordered_prob[i], (1 - ordered_prob[i])])
+        # two adjacent ordered_loci values represent a slice of the genome that will be selected
         recombination_genome.append(
             genome1[loc:ordered_loci[(i + 1)]] if genome_seg == 1 else genome2[loc:ordered_loci[(i + 1)]]
         )
