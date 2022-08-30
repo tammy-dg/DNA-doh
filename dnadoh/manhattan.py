@@ -70,18 +70,54 @@ def plot_manhattan(df: pd.DataFrame, pheno_col:str = "weight"):
         y="log10-p-value",
         color="ref_alt",
         size='effect_size')
-
+    # fig.update_layout(legend_title_text='Ref -> Alt')
+    fig.update_xaxes(showline=True, linewidth=2, linecolor='black', mirror=True)
+    fig.update_yaxes(showline=True, linewidth=2, linecolor='black', mirror=True)
+    fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='grey')
+    fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='grey')
+    fig.update_layout({
+        'legend_title_text': 'Ref->Alt',
+        'plot_bgcolor': 'rgba(0,0,0,0)'
+    })
     return results_df, fig
 
 
 def main():
+    """Generates a manhattan plot using plotly express and dash
+    """
     options = parse_args()
     assembled_df = assemble(options.input_stem)
     _, fig = plot_manhattan(assembled_df)
-    fig.show()
-    # TODO: Add dash visualization
+
+    app = Dash(__name__)
+
+    app.layout = html.Div(
+        [
+            html.H1("Manhattan Plot"),
+            html.Div([
+                dcc.Dropdown(
+                    ['weight'],  # Add more phenotypes
+                    'weight',
+                    id='phenotype'
+                ),
+            ]),
+            dcc.Graph(
+                id='manhattan'
+            ),
+        ]
+    )
+
+    @app.callback(Output("manhattan", "figure"), Input("phenotype", "value"))
+    def update_graph(phenotype):
+        _, fig = plot_manhattan(df=assembled_df, pheno_col=phenotype)
+        return fig
+
+    app.run_server(debug=True)
+
 
 def parse_args():
+    """Parsing arguments
+    """
     parser = argparse.ArgumentParser()
     # nothing here for now
     parser.add_argument(
