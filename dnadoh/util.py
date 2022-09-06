@@ -4,6 +4,8 @@ from typing import List, Optional
 
 from pydantic import BaseModel
 
+import plotly.io as pio
+
 # Number of digits to use in person filenames.
 WIDTH = 6
 
@@ -64,3 +66,29 @@ def filename_assembled_data(stem):
 def pid_width(length):
     """Number of digits in personal information files' names."""
     return max(2, len(str(length)))
+
+def plotly_to_html(fig, static=False):
+    if static:
+        img = fig.to_image(
+            format="png",
+            width=750,
+            height=450,
+        )
+        b64 = base64.b64encode(img).decode()
+        html = '<p><img src="data:image/png;base64,{}"></p>'.format(b64)
+        return html
+    else:
+        return pio.to_html(
+            fig,
+            full_html=False,
+            include_plotlyjs="cdn",
+            include_mathjax="cdn",
+            config={
+                "showLink": True,
+                "toImageButtonOptions": {
+                    "format": "svg",
+                    "width": 750,
+                    "height": 600,
+                },
+            },
+        )
