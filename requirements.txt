@@ -2,6 +2,7 @@ black>=22.3
 flake8>=4.0
 isort>=5.10
 pandas>=1.4
+plotly>=5.8.2
 pydantic>=1.9
 pyfakefs>=4.5.6
 pytest>=7.1

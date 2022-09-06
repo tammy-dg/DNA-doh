@@ -33,9 +33,15 @@ DNA-doh synthesizes simple datasets that include specific variations.
         as well as an actual remote filestore.
 -   `synthesize.py`: synthesize genotypes and phenotypes.
     -   Run `python dnadoh/synthesize.py --help` for options.
--   `assemble.py`: assemble a set of synthesized files as dataframes.
+-   `assemble.py`: assemble a set of synthesized files as dataframes to organize the mutations observed in each individual.
     -   Data could be synthesized in this format directly,
         but one of DNA-doh's goals is to reproduce the steps in production data pipelines.
+-   `analyze.py`: Creates visualizations and does simple statistical tests.
+    -   Looks at the distribution of a continuous measured phenotype
+        based on each base observed at locations that have been mutated
+    -   Performs a t-test testing whether the mean of the measured phenotype differs
+        based on the base that is observed at that location
+    -   Results are displayed on the local webpage spun up by Dash
 
 To test synthesis and assembly:
 
@@ -50,12 +56,6 @@ temp-phenotypes.csv     temp-pid000001.csv
 temp-pid000002.csv      temp-pid000003.csv
 temp-reference.json
 
-# Assemble the data into an analyzable dataframe.
-$ python dnadoh/assemble.py temp
-   pid  age gsex  weight  location reference alternate
-0    1   59    M   111.4         1         A         C
-1    1   59    M   111.4         3         T         C
-2    2   52    F    82.3         2         G         C
-3    3   46    M    79.2         2         G         A
-4    3   46    M    79.2         3         T         C
+# Analyze the mutated locations (assembles the data under the hood)
+$ python dnadoh/analyze.py --input_stem temp
 ```
