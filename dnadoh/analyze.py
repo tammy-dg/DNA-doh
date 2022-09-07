@@ -7,6 +7,7 @@ Also performs t-tests of each alternative base to the reference base.
 import argparse
 
 import pandas as pd
+import os
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
@@ -167,9 +168,8 @@ def parse_args():
     )
     parser.add_argument(
         "--isolate_households",
-        type=int,
-        default=True,
-        help="0 or 1 boolean - enforce only one individual per household ID"
+        action="store_true",
+        help="enforce only one individual per household ID"
     )
     parser.add_argument(
         "--seed", 
@@ -179,12 +179,10 @@ def parse_args():
     )
     parser.add_argument(
         "--write-csv",
-        type=int,
-        default=True,
-        help="0 or 1 boolean - write results to csv"
+        action="store_true",
+        help="write results to csv"
     )
     options = parser.parse_args()
-    assert options.input_stem is not None, "must specify an input path/file stem"
     return options
 
 

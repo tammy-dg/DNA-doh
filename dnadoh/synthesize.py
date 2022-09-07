@@ -180,7 +180,7 @@ class PersonGenerator:
                               5: 0.0583,
                               6: 0.0203,
                               7: 0.0124}
-    UPPER_BOUND = 10 # Largest possible household size, according to our model
+    HH_SIZE_INCREMENT_PROBABILITY = 0.5 # probability to increment household size by 1
 
     def __init__(self, options):
         """Construct generator."""
@@ -227,9 +227,15 @@ class PersonGenerator:
         return str(i).zfill(PID_WIDTH)
     
     def _random_household_size(self):
-        return np.random.choice(a = [key for key in self.HOUSEHOLD_SIZE_DISTRIB.keys()], 
+        hh_size = np.random.choice(a = [key for key in self.HOUSEHOLD_SIZE_DISTRIB.keys()], 
                                 size = 1, 
                                 p = [val for val in self.HOUSEHOLD_SIZE_DISTRIB.values()])
+        
+        if hh_size == 7:
+            while np.random.random() < self.HH_SIZE_INCREMENT_PROBABILITY:
+                hh_size += 1
+        
+        return hh_size
 
     def _init_household(self):
         """Initializes household-related variables"""
