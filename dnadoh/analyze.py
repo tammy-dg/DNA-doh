@@ -7,6 +7,7 @@ Also performs t-tests of each alternative base to the reference base.
 import argparse
 
 import pandas as pd
+import os
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
@@ -117,7 +118,7 @@ def plot_boxplot(df: pd.DataFrame, y_variable: str, location: int) -> None:
 
 def main():
     options = parse_args()
-    assembled_df = assemble(options.input_stem)
+    assembled_df = assemble(options)
 
     locations = get_unique_locations(assembled_df)
     locations = sorted(locations)
@@ -158,13 +159,28 @@ def main():
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    # nothing here for now
     parser.add_argument(
         "--input_stem",
         type=str,
         default=None,
         help="Path/file stem of synthesized data",
         required=True,
+    )
+    parser.add_argument(
+        "--isolate_households",
+        action="store_true",
+        help="enforce only one individual per household ID"
+    )
+    parser.add_argument(
+        "--seed", 
+        type=int,
+        default=None,
+        help="RNG seed"
+    )
+    parser.add_argument(
+        "--write-csv",
+        action="store_true",
+        help="write results to csv"
     )
     options = parser.parse_args()
     return options
