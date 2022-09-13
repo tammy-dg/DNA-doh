@@ -22,7 +22,7 @@ def main():
     """Generates a manhattan plot using plotly express and dash
     """
     options = parse_args()
-    assembled_df = assemble(options.input_stem)
+    assembled_df = assemble(options)
     _, fig = plot_manhattan(assembled_df)
 
     app = Dash(__name__)
