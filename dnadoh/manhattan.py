@@ -15,78 +15,14 @@ from dash import Dash, dcc, html, Input, Output
 from scipy import stats
 
 from assemble import assemble
-
-
-def plot_manhattan(df: pd.DataFrame, pheno_col:str = "weight"):
-    """Create a manhattanplot
-    """
-
-    # Generating stats per position
-    all_loc = df[['location', 'reference', 'alternate']].drop_duplicates()
-
-    # Initializing results
-    results_df = []
-    for _, row in all_loc.iterrows():
-
-        # Subset data
-        subset_df = df[df['location'] == row['location']]
-        alt_df = subset_df.loc[
-            subset_df['alternate'] == row['alternate'],
-            ['pid', pheno_col]
-        ].drop_duplicates()
-        ref_df = df.loc[
-            ~df['pid'].isin(subset_df['pid']),
-            ['pid', pheno_col]
-        ].drop_duplicates()
-
-        # Checking for sufficient sample size
-        if alt_df.shape[0] <= 1 or ref_df.shape[0] <= 1:
-            continue
-
-        # Computing stats
-        effect_size = np.mean(ref_df[pheno_col]) / np.mean(alt_df[pheno_col])
-        p_value = stats.ttest_ind(
-            alt_df[pheno_col],
-            ref_df[pheno_col],
-        )[1]
-
-        # Adding stats to results
-        results_df.append({
-            'loc': row['location'],
-            'ref': row['reference'],
-            'alt': row['alternate'],
-            'effect_size': effect_size,
-            'p-value': p_value
-        })
-
-    results_df = pd.DataFrame(results_df)
-    results_df['log10-p-value'] = -np.log10(results_df['p-value'])
-    results_df['ref_alt'] = results_df['ref'] + "->" + results_df['alt']
-
-    # Making a figure
-    fig = px.scatter(
-        results_df,
-        x="loc",
-        y="log10-p-value",
-        color="ref_alt",
-        size='effect_size')
-    # fig.update_layout(legend_title_text='Ref -> Alt')
-    fig.update_xaxes(showline=True, linewidth=2, linecolor='black', mirror=True)
-    fig.update_yaxes(showline=True, linewidth=2, linecolor='black', mirror=True)
-    fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='grey')
-    fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='grey')
-    fig.update_layout({
-        'legend_title_text': 'Ref->Alt',
-        'plot_bgcolor': 'rgba(0,0,0,0)'
-    })
-    return results_df, fig
+from dnadoh_plot.plot_util import plot_manhattan
 
 
 def main():
     """Generates a manhattan plot using plotly express and dash
     """
     options = parse_args()
-    assembled_df = assemble(options.input_stem)
+    assembled_df = assemble(options)
     _, fig = plot_manhattan(assembled_df)
 
     app = Dash(__name__)
